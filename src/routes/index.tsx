@@ -1,29 +1,53 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { AppShell } from "@/components/AppShell";
+import { ModuleCard } from "@/components/ModuleCard";
+import { modules } from "@/lib/modules";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Your App" },
-      { name: "description", content: "Replace this with a one-sentence description of your app." },
-      { property: "og:title", content: "Your App" },
-      { property: "og:description", content: "Replace this with a one-sentence description of your app." },
+      { title: "WMS Platform — Dashboard" },
+      {
+        name: "description",
+        content:
+          "Plataforma WMS MultiTenant SaaS — central de módulos: recebimento, armazenagem, separação, expedição e mais.",
+      },
+      { property: "og:title", content: "WMS Platform — Dashboard" },
+      {
+        property: "og:description",
+        content: "Plataforma WMS MultiTenant SaaS modular e escalável.",
+      },
     ],
   }),
-  component: Index,
+  component: DashboardPage,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
-function Index() {
+function DashboardPage() {
+  const operational = modules.filter((m) => m.id !== "dashboard");
+
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
+    <AppShell>
+      <section className="mb-10">
+        <p className="text-sm font-medium text-muted-foreground">Painel principal</p>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight sm:text-4xl">
+          Bem-vindo à WMS Platform
+        </h1>
+        <p className="mt-2 max-w-2xl text-muted-foreground">
+          Selecione um módulo para começar. Use{" "}
+          <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">⌘K</kbd> para
+          pesquisar ou{" "}
+          <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">Alt + número</kbd>{" "}
+          para acesso rápido.
+        </p>
+      </section>
+
+      <section aria-label="Módulos">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {operational.map((m) => (
+            <ModuleCard key={m.id} module={m} />
+          ))}
+        </div>
+      </section>
+    </AppShell>
   );
 }
