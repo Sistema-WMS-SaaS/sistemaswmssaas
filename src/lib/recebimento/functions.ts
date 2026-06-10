@@ -44,7 +44,7 @@ function detectXmlType(content: string): string {
 }
 
 export const importXml = createServerFn({ method: "POST" })
-  .inputValidator(importXmlSchema)
+  .validator(importXmlSchema)
   .handler(async ({ data }) => {
     const validation = validateXmlContent(data.content)
     if (!validation.valid) {
@@ -93,7 +93,7 @@ export const importXml = createServerFn({ method: "POST" })
   })
 
 export const getXmlHistory = createServerFn({ method: "POST" })
-  .inputValidator(xmlHistoryFilterSchema)
+  .validator(xmlHistoryFilterSchema)
   .handler(async ({ data }) => {
     const records = data.tenantId || data.fileName || data.userId || data.status || data.startDate || data.endDate
       ? searchXmlRecords(data)
@@ -102,7 +102,7 @@ export const getXmlHistory = createServerFn({ method: "POST" })
   })
 
 export const getXmlRecordById = createServerFn({ method: "POST" })
-  .inputValidator(xmlRecordIdSchema)
+  .validator(xmlRecordIdSchema)
   .handler(async ({ data }) => {
     const record = getXmlRecord(data.id)
     if (!record) {
@@ -112,7 +112,7 @@ export const getXmlRecordById = createServerFn({ method: "POST" })
   })
 
 export const archiveXmlRecord = createServerFn({ method: "POST" })
-  .inputValidator(xmlRecordIdSchema)
+  .validator(xmlRecordIdSchema)
   .handler(async ({ data }) => {
     const now = formatTimestamp()
     const updated = updateXmlRecordStatus(data.id, "archived", {
@@ -127,7 +127,7 @@ export const archiveXmlRecord = createServerFn({ method: "POST" })
   })
 
 export const cancelXmlRecord = createServerFn({ method: "POST" })
-  .inputValidator(xmlRecordIdSchema)
+  .validator(xmlRecordIdSchema)
   .handler(async ({ data }) => {
     const now = formatTimestamp()
     const updated = updateXmlRecordStatus(data.id, "cancelled", {
