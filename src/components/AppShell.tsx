@@ -3,6 +3,7 @@ import { Search, Boxes } from "lucide-react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { GlobalSearch } from "./GlobalSearch";
 import { TenantProvider, useTenant } from "@/lib/tenant";
 
@@ -48,6 +49,7 @@ function Header() {
 export function AppShell({ children }: { children: ReactNode }) {
   return (
     <TenantProvider>
+      <TooltipProvider delayDuration={200}>
       <div className="min-h-screen bg-background text-foreground">
         <Header />
         <GlobalSearch />
@@ -56,6 +58,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           WMS Platform · MultiTenant SaaS · v0.1
         </footer>
       </div>
+      </TooltipProvider>
     </TenantProvider>
   );
 }

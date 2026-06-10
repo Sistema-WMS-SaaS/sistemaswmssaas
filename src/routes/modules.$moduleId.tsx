@@ -1,11 +1,15 @@
 import { createFileRoute, Link, notFound, useRouter } from "@tanstack/react-router";
 import { ArrowLeft, Construction } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { getModule, modules } from "@/lib/modules";
 import { eventBus } from "@/lib/event-bus";
 import { useTenant } from "@/lib/tenant";
+import { FeatureNav } from "@/components/recebimento/FeatureNav";
+import { ImportarXml } from "@/components/recebimento/ImportarXml";
+import { HistoricoXml } from "@/components/recebimento/HistoricoXml";
+import type { RecebimentoFeature } from "@/lib/recebimento/types";
 
 export const Route = createFileRoute("/modules/$moduleId")({
   loader: ({ params }) => {
@@ -26,6 +30,30 @@ export const Route = createFileRoute("/modules/$moduleId")({
   notFoundComponent: ModuleNotFound,
   errorComponent: ModuleError,
 });
+
+function RecebimentoModule() {
+  const [feature, setFeature] = useState<RecebimentoFeature>("importar-xml");
+
+  const onKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === "1") setFeature("importar-xml");
+    else if (e.key === "2") setFeature("historico-xml");
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onKeyDown]);
+
+  return (
+    <section className="mt-8 space-y-8">
+      <FeatureNav active={feature} onSelect={setFeature} />
+      <div className="rounded-2xl border border-border/60 bg-card p-6 sm:p-8">
+        {feature === "importar-xml" && <ImportarXml />}
+        {feature === "historico-xml" && <HistoricoXml />}
+      </div>
+    </section>
+  );
+}
 
 function ModulePage() {
   const { module } = Route.useLoaderData();
@@ -55,15 +83,21 @@ function ModulePage() {
         </div>
       </header>
 
-      <section className="mt-10 rounded-2xl border border-dashed border-border/70 bg-card/40 p-10 text-center">
-        <Construction className="mx-auto h-10 w-10 text-muted-foreground" />
-        <h2 className="mt-4 text-lg font-semibold">Estrutura pronta para funcionalidades</h2>
-        <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-          Este módulo já está integrado à arquitetura MultiTenant, ao Event Bus e ao controle
-          de acesso. Futuras funcionalidades operacionais serão plugadas aqui sem alterações
-          estruturais.
-        </p>
-      </section>
+      {module.id === "recebimento" ? (
+        <RecebimentoModule />
+      ) : (
+        <>
+          <section className="mt-10 rounded-2xl border border-dashed border-border/70 bg-card/40 p-10 text-center">
+            <Construction className="mx-auto h-10 w-10 text-muted-foreground" />
+            <h2 className="mt-4 text-lg font-semibold">Estrutura pronta para funcionalidades</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+              Este módulo já está integrado à arquitetura MultiTenant, ao Event Bus e ao controle
+              de acesso. Futuras funcionalidades operacionais serão plugadas aqui sem alterações
+              estruturais.
+            </p>
+          </section>
+        </>
+      )}
 
       <section className="mt-10">
         <h3 className="mb-3 text-sm font-medium text-muted-foreground">Outros módulos</h3>

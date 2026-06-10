@@ -7,10 +7,17 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
+  CommandSeparator,
 } from "@/components/ui/command";
 import { modules } from "@/lib/modules";
 import { eventBus } from "@/lib/event-bus";
 import { useTenant } from "@/lib/tenant";
+import { Upload, History } from "lucide-react";
+
+const recebimentoFeatures = [
+  { id: "importar-xml", name: "Importar XML", icon: Upload },
+  { id: "historico-xml", name: "Histórico XML", icon: History },
+];
 
 export function GlobalSearch() {
   const [open, setOpen] = useState(false);
@@ -19,13 +26,11 @@ export function GlobalSearch() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      // Cmd/Ctrl + K opens global search
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setOpen((o) => !o);
         return;
       }
-      // Alt + <digit> jumps to module by shortcut
       if (e.altKey && !e.metaKey && !e.ctrlKey) {
         const mod = modules.find((m) => m.shortcut === e.key);
         if (mod) {
@@ -60,6 +65,23 @@ export function GlobalSearch() {
               </kbd>
             </CommandItem>
           ))}
+        </CommandGroup>
+        <CommandSeparator />
+        <CommandGroup heading="Funcionalidades — Recebimento">
+          {recebimentoFeatures.map((f) => {
+            const Icon = f.icon;
+            return (
+              <CommandItem
+                key={f.id}
+                value={`${f.name} Recebimento`}
+                onSelect={() => go("recebimento")}
+              >
+                <Icon className="mr-2 h-4 w-4" />
+                <span>{f.name}</span>
+                <span className="ml-2 text-xs text-muted-foreground">Recebimento</span>
+              </CommandItem>
+            );
+          })}
         </CommandGroup>
       </CommandList>
     </CommandDialog>

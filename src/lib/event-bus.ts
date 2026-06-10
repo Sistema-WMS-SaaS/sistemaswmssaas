@@ -1,14 +1,8 @@
-/**
- * Lightweight in-app Event Bus.
- *
- * This is the integration seam between modules. Today it's an in-memory
- * pub/sub. Tomorrow the same API can be backed by WebSockets, a REST
- * polling layer or a message broker (RabbitMQ / Kafka) without changing
- * the call sites in modules.
- */
 export type WmsEvent =
   | { type: "module.opened"; moduleId: string; tenantId: string }
   | { type: "search.performed"; query: string; tenantId: string }
+  | { type: "xml.imported"; fileName: string; recordId: string; tenantId: string; userId: string }
+  | { type: "xml.updated"; recordId: string; status: string; tenantId: string; userId: string }
   | { type: string; [key: string]: unknown };
 
 type Handler = (event: WmsEvent) => void;
