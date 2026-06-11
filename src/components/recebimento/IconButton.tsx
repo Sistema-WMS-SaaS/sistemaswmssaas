@@ -29,6 +29,7 @@ export interface IconButtonProps {
   className?: string;
   size?: keyof typeof sizeMap;
   variant?: keyof typeof variantStyles;
+  type?: "button" | "submit" | "reset";
 }
 
 export function IconButton({
@@ -41,6 +42,7 @@ export function IconButton({
   className,
   size = "md",
   variant = "default",
+  type = "button",
 }: IconButtonProps) {
   const dims = sizeMap[size];
 
@@ -48,7 +50,7 @@ export function IconButton({
     <Tooltip>
       <TooltipTrigger asChild>
         <button
-          type="button"
+          type={type}
           onClick={onClick}
           disabled={disabled}
           aria-label={label}

@@ -244,7 +244,7 @@ export function ImportarXml() {
                 shortcut="Enter"
                 size="md"
                 variant={status === "invalid" ? "destructive" : "default"}
-                disabled={!file || importing || status === "invalid" || status === "success"}
+                disabled={!file || importing || status === "invalid"}
                 onClick={handleImport}
               />
             </div>

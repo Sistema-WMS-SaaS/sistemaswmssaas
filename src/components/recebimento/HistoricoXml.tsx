@@ -251,7 +251,7 @@ export function HistoricoXml() {
     const unsub = eventBus.subscribe((ev) => {
       if (ev.type === "xml.imported") load(searchQuery || undefined);
     });
-    return unsub;
+    return () => { unsub(); };
   }, [load, searchQuery]);
 
   const handleSearch = (e: React.FormEvent) => {
