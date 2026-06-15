@@ -17,6 +17,7 @@ export interface XmlRecord {
   id: string
   tenantId: string
   fileName: string
+  fileSize: number
   xmlType: string
   xmlContent: string
   importDate: string

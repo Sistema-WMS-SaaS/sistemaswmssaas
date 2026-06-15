@@ -3,6 +3,12 @@ import { z } from "zod"
 export const importXmlSchema = z.object({
   fileName: z.string().min(1, "Nome do arquivo é obrigatório"),
   content: z.string().min(1, "Conteúdo do XML é obrigatório"),
+  fileSize: z.number().nonnegative().optional(),
+  observations: z.string().optional(),
+})
+
+export const updateXmlRecordSchema = z.object({
+  id: z.string().min(1),
   observations: z.string().optional(),
 })
 
@@ -14,6 +20,8 @@ export const xmlHistoryFilterSchema = z.object({
   userId: z.string().optional(),
   status: z.enum(["active", "archived", "cancelled"]).optional(),
   tenantId: z.string().optional(),
+  page: z.number().int().positive().optional(),
+  pageSize: z.number().int().positive().max(100).optional(),
 })
 
 export const xmlRecordIdSchema = z.object({

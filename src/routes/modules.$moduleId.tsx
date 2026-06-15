@@ -1,8 +1,9 @@
 import { createFileRoute, Link, notFound, useRouter } from "@tanstack/react-router";
-import { ArrowLeft, Construction } from "lucide-react";
+import { ArrowLeft, Construction, Upload } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/recebimento/IconButton";
 import { getModule, modules } from "@/lib/modules";
 import { eventBus } from "@/lib/event-bus";
 import { useTenant } from "@/lib/tenant";
@@ -46,7 +47,16 @@ function RecebimentoModule() {
 
   return (
     <section className="mt-8 space-y-8">
-      <FeatureNav active={feature} onSelect={setFeature} />
+      <div className="flex items-center justify-between gap-4">
+        <FeatureNav active={feature} onSelect={setFeature} />
+        <IconButton
+          icon={Upload}
+          label="Importar XML"
+          description="Selecionar arquivo XML para processamento"
+          size="md"
+          onClick={() => setFeature("importar-xml")}
+        />
+      </div>
       <div className="rounded-2xl border border-border/60 bg-card p-6 sm:p-8">
         {feature === "importar-xml" && <ImportarXml />}
         {feature === "historico-xml" && <HistoricoXml />}

@@ -11,6 +11,12 @@ import {
   Activity,
   Tag,
   X,
+  Filter,
+  ChevronDown,
+  ChevronUp,
+  Pencil,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { IconButton } from "./IconButton";
 import {
@@ -18,6 +24,7 @@ import {
   getXmlRecordById,
   archiveXmlRecord,
   cancelXmlRecord,
+  updateXmlRecordInfo,
 } from "@/lib/recebimento/functions";
 import { eventBus } from "@/lib/event-bus";
 import { useTenant } from "@/lib/tenant";
@@ -36,8 +43,21 @@ const statusColor: Record<XmlRecordStatus, string> = {
   cancelled: "text-destructive bg-destructive/10",
 };
 
+const statusOptions: { value: string; label: string }[] = [
+  { value: "", label: "Todos" },
+  { value: "active", label: "Ativo" },
+  { value: "archived", label: "Arquivado" },
+  { value: "cancelled", label: "Cancelado" },
+];
+
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString("pt-BR");
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function prettyXml(xml: string): string {
@@ -108,7 +128,7 @@ function ViewXmlDialog({ record, onClose }: ViewDialogProps) {
           <div className="min-w-0 flex-1">
             <h3 className="truncate text-base font-semibold">{record.fileName}</h3>
             <p className="text-xs text-muted-foreground">
-              {formatDate(record.importDate)} · {statusLabel[record.status]}
+              {formatDate(record.importDate)} · {statusLabel[record.status]} · {formatFileSize(record.fileSize)}
             </p>
           </div>
           <IconButton icon={X} label="Fechar" size="sm" onClick={onClose} />
@@ -227,21 +247,127 @@ function ViewXmlDialog({ record, onClose }: ViewDialogProps) {
   );
 }
 
+interface UpdateInfoDialogProps {
+  record: XmlRecord;
+  onClose: () => void;
+  onUpdated: () => void;
+}
+
+function UpdateInfoDialog({ record, onClose, onUpdated }: UpdateInfoDialogProps) {
+  const [observations, setObservations] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    await updateXmlRecordInfo({ data: { id: record.id, observations } });
+    setSaving(false);
+    onUpdated();
+    onClose();
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+      onClick={onClose}
+      onKeyDown={(e) => e.key === "Escape" && onClose()}
+    >
+      <div
+        className="flex w-full max-w-lg flex-col rounded-2xl border border-border/60 bg-background shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-border/60 px-6 py-4">
+          <h3 className="text-base font-semibold">Atualizar Informações</h3>
+          <IconButton icon={X} label="Fechar" size="sm" onClick={onClose} />
+        </div>
+        <div className="space-y-4 p-6">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">
+              Arquivo
+            </label>
+            <p className="text-sm font-medium">{record.fileName}</p>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">
+              Status
+            </label>
+            <span
+              className={cn(
+                "ml-2 inline-block rounded-full px-2 py-0.5 text-[11px] font-medium",
+                statusColor[record.status],
+              )}
+            >
+              {statusLabel[record.status]}
+            </span>
+          </div>
+          <div>
+            <label htmlFor="update-observations" className="text-xs font-medium text-muted-foreground">
+              Observações
+            </label>
+            <textarea
+              id="update-observations"
+              value={observations}
+              onChange={(e) => setObservations(e.target.value)}
+              placeholder="Adicionar observações sobre este registro..."
+              rows={3}
+              className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 border-t border-border/60 px-6 py-4">
+          <IconButton icon={X} label="Cancelar" size="sm" onClick={onClose} />
+          <IconButton
+            icon={Pencil}
+            label="Salvar"
+            description="Salvar alterações"
+            size="sm"
+            disabled={saving}
+            onClick={handleSave}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function HistoricoXml() {
   const [records, setRecords] = useState<XmlRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [totalRecords, setTotalRecords] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRecord, setSelectedRecord] = useState<XmlRecord | null>(null);
+  const [updateRecord, setUpdateRecord] = useState<XmlRecord | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
+
+  const [filterFileName, setFilterFileName] = useState("");
+  const [filterStartDate, setFilterStartDate] = useState("");
+  const [filterEndDate, setFilterEndDate] = useState("");
+  const [filterUserId, setFilterUserId] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+
   const { tenant } = useTenant();
 
-  const load = useCallback(async (query?: string) => {
+  const buildFilter = useCallback(() => {
+    const f: Record<string, string | number> = { tenantId: tenant.id, page, pageSize };
+    const q = searchQuery || filterFileName;
+    if (q) f.fileName = q;
+    if (filterStartDate) f.startDate = filterStartDate;
+    if (filterEndDate) f.endDate = filterEndDate;
+    if (filterUserId) f.userId = filterUserId;
+    if (filterStatus) f.status = filterStatus;
+    return f;
+  }, [tenant.id, page, pageSize, searchQuery, filterFileName, filterStartDate, filterEndDate, filterUserId, filterStatus]);
+
+  const load = useCallback(async () => {
     setLoading(true);
-    const filter: Record<string, string> = { tenantId: tenant.id };
-    if (query) filter.fileName = query;
-    const result = await getXmlHistory({ data: filter });
+    const filter = buildFilter();
+    const result = await getXmlHistory({ data: filter as any });
     setRecords(result.records);
+    setTotalRecords(result.total);
     setLoading(false);
-  }, [tenant.id]);
+  }, [buildFilter]);
 
   useEffect(() => {
     load();
@@ -249,14 +375,31 @@ export function HistoricoXml() {
 
   useEffect(() => {
     const unsub = eventBus.subscribe((ev) => {
-      if (ev.type === "xml.imported") load(searchQuery || undefined);
+      if (ev.type === "xml.imported" || ev.type === "xml.updated") load();
     });
     return () => { unsub(); };
-  }, [load, searchQuery]);
+  }, [load]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    load(searchQuery || undefined);
+    setPage(1);
+    load();
+  };
+
+  const handleFilterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPage(1);
+    load();
+  };
+
+  const clearFilters = () => {
+    setFilterFileName("");
+    setFilterStartDate("");
+    setFilterEndDate("");
+    setFilterUserId("");
+    setFilterStatus("");
+    setSearchQuery("");
+    setPage(1);
   };
 
   const handleView = async (id: string) => {
@@ -270,21 +413,32 @@ export function HistoricoXml() {
 
   const handleArchive = async (id: string) => {
     await archiveXmlRecord({ data: { id } });
-    load(searchQuery || undefined);
+    load();
     eventBus.publish({ type: "xml.updated", recordId: id, status: "archived", tenantId: tenant.id, userId: "system" });
   };
 
   const handleCancel = async (id: string) => {
     await cancelXmlRecord({ data: { id } });
-    load(searchQuery || undefined);
+    load();
     eventBus.publish({ type: "xml.updated", recordId: id, status: "cancelled", tenantId: tenant.id, userId: "system" });
   };
 
+  const totalPages = Math.ceil(totalRecords / pageSize);
+
   return (
     <section aria-labelledby="historico-xml-title">
-      <h2 id="historico-xml-title" className="text-lg font-semibold">
-        Histórico XML
-      </h2>
+      <div className="flex items-center justify-between">
+        <h2 id="historico-xml-title" className="text-lg font-semibold">
+          Histórico XML
+        </h2>
+        <IconButton
+          icon={Filter}
+          label="Filtros"
+          description="Abrir painel de filtros avançados"
+          size="sm"
+          onClick={() => setShowFilters(!showFilters)}
+        />
+      </div>
 
       <form onSubmit={handleSearch} className="mt-4 flex items-center gap-2">
         <div className="relative flex-1">
@@ -292,13 +446,83 @@ export function HistoricoXml() {
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
             placeholder="Pesquisar por nome do arquivo..."
             className="h-10 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-sm placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
         </div>
         <IconButton icon={Search} label="Pesquisar" shortcut="Enter" size="md" type="submit" />
       </form>
+
+      {showFilters && (
+        <form onSubmit={handleFilterSubmit} className="mt-3 rounded-xl border border-border/60 bg-card p-4">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-medium text-muted-foreground">Filtros Avançados</span>
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              Limpar filtros
+            </button>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Nome do Arquivo</label>
+              <input
+                type="text"
+                value={filterFileName}
+                onChange={(e) => setFilterFileName(e.target.value)}
+                placeholder="Filtrar por nome..."
+                className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-sm placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Data Inicial</label>
+              <input
+                type="date"
+                value={filterStartDate}
+                onChange={(e) => setFilterStartDate(e.target.value)}
+                className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Data Final</label>
+              <input
+                type="date"
+                value={filterEndDate}
+                onChange={(e) => setFilterEndDate(e.target.value)}
+                className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Usuário</label>
+              <input
+                type="text"
+                value={filterUserId}
+                onChange={(e) => setFilterUserId(e.target.value)}
+                placeholder="ID do usuário..."
+                className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-sm placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Status</label>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                {statusOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="mt-3 flex justify-end">
+            <IconButton icon={Search} label="Aplicar Filtros" size="sm" type="submit" />
+          </div>
+        </form>
+      )}
 
       <div className="mt-4 overflow-hidden rounded-xl border border-border/60">
         {loading ? (
@@ -329,6 +553,9 @@ export function HistoricoXml() {
                   <th className="hidden px-4 py-3 text-left font-medium text-muted-foreground md:table-cell">
                     Usuário
                   </th>
+                  <th className="hidden px-4 py-3 text-left font-medium text-muted-foreground lg:table-cell">
+                    Tamanho
+                  </th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">
                     Status
                   </th>
@@ -355,6 +582,9 @@ export function HistoricoXml() {
                     <td className="hidden px-4 py-3 text-muted-foreground md:table-cell">
                       {r.userName}
                     </td>
+                    <td className="hidden px-4 py-3 text-muted-foreground lg:table-cell">
+                      {formatFileSize(r.fileSize)}
+                    </td>
                     <td className="px-4 py-3">
                       <span
                         className={cn(
@@ -380,6 +610,13 @@ export function HistoricoXml() {
                           description="Baixar o arquivo XML original"
                           size="sm"
                           onClick={() => handleDownload(r)}
+                        />
+                        <IconButton
+                          icon={Pencil}
+                          label="Atualizar"
+                          description="Atualizar informações do registro"
+                          size="sm"
+                          onClick={() => setUpdateRecord(r)}
                         />
                         {r.status === "active" && (
                           <>
@@ -410,21 +647,53 @@ export function HistoricoXml() {
         )}
       </div>
 
-      <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1">
-          <FileText className="h-3.5 w-3.5" />
-          {records.length} registro{records.length !== 1 ? "s" : ""}
-        </span>
-        <span className="flex items-center gap-1">
-          <Clock className="h-3.5 w-3.5" />
-          Atualizado em tempo real
-        </span>
+      <div className="mt-3 flex items-center justify-between gap-4 text-xs text-muted-foreground">
+        <div className="flex items-center gap-4">
+          <span className="flex items-center gap-1">
+            <FileText className="h-3.5 w-3.5" />
+            {totalRecords} registro{totalRecords !== 1 ? "s" : ""}
+          </span>
+          <span className="flex items-center gap-1">
+            <Clock className="h-3.5 w-3.5" />
+            Atualizado em tempo real
+          </span>
+        </div>
+
+        {totalPages > 1 && (
+          <div className="flex items-center gap-1">
+            <IconButton
+              icon={ChevronLeft}
+              label="Anterior"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            />
+            <span className="px-2 text-xs tabular-nums">
+              {page} / {totalPages}
+            </span>
+            <IconButton
+              icon={ChevronRight}
+              label="Próxima"
+              size="sm"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            />
+          </div>
+        )}
       </div>
 
       {selectedRecord && (
         <ViewXmlDialog
           record={selectedRecord}
           onClose={() => setSelectedRecord(null)}
+        />
+      )}
+
+      {updateRecord && (
+        <UpdateInfoDialog
+          record={updateRecord}
+          onClose={() => setUpdateRecord(null)}
+          onUpdated={load}
         />
       )}
     </section>

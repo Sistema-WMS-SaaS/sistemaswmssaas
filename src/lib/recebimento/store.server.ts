@@ -40,6 +40,13 @@ export function updateXmlRecordStatus(
   return record
 }
 
+export function updateXmlRecord(id: string, updates: Partial<XmlRecord>): XmlRecord | undefined {
+  const record = xmlRecords.get(id)
+  if (!record) return undefined
+  Object.assign(record, updates)
+  return record
+}
+
 export function searchXmlRecords(filter: {
   fileName?: string
   productCode?: string
@@ -48,7 +55,9 @@ export function searchXmlRecords(filter: {
   userId?: string
   status?: string
   tenantId?: string
-}): XmlRecord[] {
+  page?: number
+  pageSize?: number
+}): { records: XmlRecord[]; total: number } {
   let results = Array.from(xmlRecords.values())
 
   if (filter.tenantId) {
@@ -75,5 +84,11 @@ export function searchXmlRecords(filter: {
 
   results.sort((a, b) => new Date(b.importDate).getTime() - new Date(a.importDate).getTime())
 
-  return results
+  const total = results.length
+  const page = filter.page ?? 1
+  const pageSize = filter.pageSize ?? 20
+  const start = (page - 1) * pageSize
+  const paged = results.slice(start, start + pageSize)
+
+  return { records: paged, total }
 }

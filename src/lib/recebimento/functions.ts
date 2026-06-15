@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { importXmlSchema, xmlHistoryFilterSchema, xmlRecordIdSchema } from "./schemas";
+import { importXmlSchema, xmlHistoryFilterSchema, xmlRecordIdSchema, updateXmlRecordSchema } from "./schemas";
 import {
   addImportRecord,
   addXmlRecord,
@@ -7,6 +7,7 @@ import {
   getXmlRecord,
   searchXmlRecords,
   updateXmlRecordStatus,
+  updateXmlRecord,
 } from "./store.server";
 import type { XmlRecord, XmlImportRecord, XmlRecordStatus } from "./types";
 
@@ -73,6 +74,7 @@ export const importXml = createServerFn({ method: "POST" })
       id,
       tenantId: "demo",
       fileName: data.fileName,
+      fileSize: data.fileSize ?? 0,
       xmlType,
       xmlContent: data.content,
       importDate: now,
@@ -95,10 +97,9 @@ export const importXml = createServerFn({ method: "POST" })
 export const getXmlHistory = createServerFn({ method: "POST" })
   .validator(xmlHistoryFilterSchema)
   .handler(async ({ data }) => {
-    const records = data.tenantId || data.fileName || data.userId || data.status || data.startDate || data.endDate
-      ? searchXmlRecords(data)
-      : getAllXmlRecords()
-    return { records }
+    const result = searchXmlRecords(data)
+    const total = result.records.length
+    return { records: result.records, total: result.total }
   })
 
 export const getXmlRecordById = createServerFn({ method: "POST" })
@@ -138,5 +139,24 @@ export const cancelXmlRecord = createServerFn({ method: "POST" })
     if (!updated) {
       return { success: false as const, error: "Registro não encontrado." }
     }
+    return { success: true as const }
+  })
+
+export const updateXmlRecordInfo = createServerFn({ method: "POST" })
+  .validator(updateXmlRecordSchema)
+  .handler(async ({ data }) => {
+    const record = getXmlRecord(data.id)
+    if (!record) {
+      return { success: false as const, error: "Registro não encontrado." }
+    }
+    const now = formatTimestamp()
+    if (data.observations !== undefined) {
+      record.processingLog.push({
+        timestamp: now,
+        action: "atualizado",
+        details: `Observações atualizadas: "${data.observations}"`,
+      })
+    }
+    record.lastUpdate = now
     return { success: true as const }
   })

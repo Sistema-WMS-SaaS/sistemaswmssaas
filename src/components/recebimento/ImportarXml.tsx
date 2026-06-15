@@ -84,7 +84,7 @@ export function ImportarXml() {
 
     try {
       const content = await file.text();
-      const result = await importXml({ data: { fileName: file.name, content, observations } });
+      const result = await importXml({ data: { fileName: file.name, content, fileSize: file.size, observations } });
 
       if (result.success) {
         setStatus("success");
